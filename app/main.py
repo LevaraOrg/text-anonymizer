@@ -7,9 +7,9 @@ from fastapi import Body, FastAPI
 from app.anonymizer import anonymize, get_opf
 from app.deanonymizer import deanonymize
 from app.models import (
-    ANONYMIZE_EXAMPLE_CATEGORY_FILTER,
-    ANONYMIZE_EXAMPLE_WITH_EXCLUSIONS,
-    ANONYMIZE_EXAMPLE_WITHOUT_EXCLUSIONS,
+    ANONYMIZE_EXAMPLE_COMBINED,
+    ANONYMIZE_EXAMPLE_PLAIN,
+    ANONYMIZE_EXAMPLE_PROTECTED,
     DEANONYMIZE_EXAMPLE,
     AnonymizeRequest,
     AnonymizeResponse,
@@ -22,13 +22,18 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 app = FastAPI(
     title="Text Anonymizer",
     description=(
-        "Reversible text anonymization with exclusion lists. Wraps OpenAI Privacy Filter.\n\n"
-        "**Workflow:** Send text to `/anonymize` → get anonymized text + mapping table → "
-        "send anonymized text to AI → send AI result + mapping to `/deanonymize` → get restored text.\n\n"
-        "**Test the exclusion effect:** Use the example dropdown in `/anonymize` below. "
-        "Compare 'With exclusions' vs 'Without exclusions' on the same text to see which terms are preserved."
+        "Reversible text anonymization with **protected terms** and exclusion lists. "
+        "Wraps OpenAI Privacy Filter.\n\n"
+        "**Two anonymization modes:**\n"
+        "- **PII model** — automatically detects persons, emails, phones, addresses, dates, etc.\n"
+        "- **Protected terms** — YOU define business secrets, company names, customer names, "
+        "project codes, or domain jargon that must always be anonymized\n\n"
+        "**Workflow:** `/anonymize` (text + protected terms) → send anonymized text to AI → "
+        "`/deanonymize` (AI result + mapping) → restored text with all originals back.\n\n"
+        "**Try it:** Use the example dropdown on `/anonymize` below — "
+        "compare 'Protected terms' vs 'Plain' to see business secrets being masked."
     ),
-    version="1.0.0",
+    version="2.0.0",
 )
 
 
@@ -36,9 +41,9 @@ app = FastAPI(
 def handle_anonymize(
     request: AnonymizeRequest = Body(
         openapi_examples={
-            "with_exclusions": ANONYMIZE_EXAMPLE_WITH_EXCLUSIONS,
-            "without_exclusions": ANONYMIZE_EXAMPLE_WITHOUT_EXCLUSIONS,
-            "category_filter": ANONYMIZE_EXAMPLE_CATEGORY_FILTER,
+            "protected_terms": ANONYMIZE_EXAMPLE_PROTECTED,
+            "combined": ANONYMIZE_EXAMPLE_COMBINED,
+            "plain": ANONYMIZE_EXAMPLE_PLAIN,
         },
     ),
 ) -> AnonymizeResponse:

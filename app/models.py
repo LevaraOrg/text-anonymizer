@@ -2,72 +2,75 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-ANONYMIZE_EXAMPLE_WITH_EXCLUSIONS = {
-    "summary": "With exclusions — company and customer names preserved",
+EXAMPLE_TEXT = (
+    "Dear Mr. Johnson, this is Sarah Miller from Levara. "
+    "We are writing regarding the contract between Levara and Acme Corp "
+    "for the OrcaEngine migration project. "
+    "Please contact Sarah at sarah.miller@levara.cloud or +1 555-0198. "
+    "The meeting is scheduled at 742 Evergreen Terrace, Springfield, IL 62704 on 06/15/2025. "
+    "Your account reference is ACC-2025-88421."
+)
+
+ANONYMIZE_EXAMPLE_PROTECTED = {
+    "summary": "Protected terms — force-anonymize business secrets",
     "description": (
-        "The names 'Levara' and 'Acme Corp' appear in the text but are listed in exclusions. "
-        "They will NOT be anonymized even if the model detects them as entities. "
-        "All other PII (person names, emails, phones, addresses) will be replaced with placeholders."
+        "The company names 'Levara' and 'Acme Corp' and the project name 'OrcaEngine' "
+        "are NOT standard PII — the model would not detect them. "
+        "By listing them under protected_terms, they are always anonymized with custom categories "
+        "like [COMPANY_1], [CUSTOMER_1], [PROJECT_1]. "
+        "This prevents business secrets from leaking to AI services."
     ),
     "value": {
-        "text": (
-            "Dear Mr. Johnson, this is Sarah Miller from Levara. "
-            "We are writing regarding the contract between Levara and Acme Corp. "
-            "Please contact Sarah at sarah.miller@levara.cloud or +1 555-0198. "
-            "The meeting is scheduled at 742 Evergreen Terrace, Springfield, IL 62704 on 06/15/2025. "
-            "Your account reference is ACC-2025-88421."
-        ),
-        "exclusions": ["Levara", "Acme Corp"],
+        "text": EXAMPLE_TEXT,
+        "protected_terms": {
+            "COMPANY": ["Levara"],
+            "CUSTOMER": ["Acme Corp"],
+            "PROJECT": ["OrcaEngine"],
+        },
     },
 }
 
-ANONYMIZE_EXAMPLE_WITHOUT_EXCLUSIONS = {
-    "summary": "Without exclusions — everything anonymized",
+ANONYMIZE_EXAMPLE_COMBINED = {
+    "summary": "Combined — protected terms + exclusions",
     "description": (
-        "Same text but NO exclusions. Now 'Levara' and 'Acme Corp' may also be "
-        "detected and anonymized if the model classifies them as PII. "
-        "Compare the result with the 'with exclusions' example to see the difference."
+        "'Levara' and 'OrcaEngine' are force-anonymized via protected_terms. "
+        "'Springfield' is excluded from anonymization via exclusions (it stays visible). "
+        "Standard PII (persons, emails, phones) is detected by the model as usual."
     ),
     "value": {
-        "text": (
-            "Dear Mr. Johnson, this is Sarah Miller from Levara. "
-            "We are writing regarding the contract between Levara and Acme Corp. "
-            "Please contact Sarah at sarah.miller@levara.cloud or +1 555-0198. "
-            "The meeting is scheduled at 742 Evergreen Terrace, Springfield, IL 62704 on 06/15/2025. "
-            "Your account reference is ACC-2025-88421."
-        ),
-        "exclusions": [],
+        "text": EXAMPLE_TEXT,
+        "protected_terms": {
+            "COMPANY": ["Levara"],
+            "CUSTOMER": ["Acme Corp"],
+            "PROJECT": ["OrcaEngine"],
+        },
+        "exclusions": ["Springfield"],
     },
 }
 
-ANONYMIZE_EXAMPLE_CATEGORY_FILTER = {
-    "summary": "Category filter — only detect persons and emails",
+ANONYMIZE_EXAMPLE_PLAIN = {
+    "summary": "Plain — PII model only, no custom terms",
     "description": (
-        "Same text but only person names and email addresses are anonymized. "
-        "Phone numbers, addresses, dates, and account numbers are left untouched."
+        "No protected_terms and no exclusions. Only standard PII detected by the model "
+        "(person names, emails, phones, addresses, dates) is anonymized. "
+        "Business terms like 'Levara', 'Acme Corp', 'OrcaEngine' pass through unchanged."
     ),
     "value": {
-        "text": (
-            "Dear Mr. Johnson, this is Sarah Miller from Levara. "
-            "We are writing regarding the contract between Levara and Acme Corp. "
-            "Please contact Sarah at sarah.miller@levara.cloud or +1 555-0198. "
-            "The meeting is scheduled at 742 Evergreen Terrace, Springfield, IL 62704 on 06/15/2025. "
-            "Your account reference is ACC-2025-88421."
-        ),
-        "exclusions": ["Levara", "Acme Corp"],
-        "categories": ["person", "email_address"],
+        "text": EXAMPLE_TEXT,
     },
 }
 
 DEANONYMIZE_EXAMPLE = {
     "summary": "Restore AI-processed text",
     "description": (
-        "An AI has summarized an anonymized text. The placeholders are still intact. "
-        "Pass the AI output together with the original mapping table to restore real names."
+        "An AI has summarized the anonymized text. The placeholders are still intact. "
+        "Pass the AI output together with the original mapping table to restore all values — "
+        "both PII and business terms."
     ),
     "value": {
         "text": (
-            "Summary: [PERSON_1] from Levara confirmed the contract with Acme Corp. "
+            "Summary: [PERSON_1] from [COMPANY_1] confirmed the contract with [CUSTOMER_1] "
+            "for the [PROJECT_1] migration. "
             "[PERSON_2] will handle communications via [EMAIL_1]. "
             "Next meeting at [ADDRESS_1] on [DATE_1]."
         ),
@@ -79,6 +82,9 @@ DEANONYMIZE_EXAMPLE = {
             "[ADDRESS_1]": "742 Evergreen Terrace, Springfield, IL 62704",
             "[DATE_1]": "06/15/2025",
             "[ACCOUNT_1]": "ACC-2025-88421",
+            "[COMPANY_1]": "Levara",
+            "[CUSTOMER_1]": "Acme Corp",
+            "[PROJECT_1]": "OrcaEngine",
         },
     },
 }
@@ -88,40 +94,56 @@ class AnonymizeRequest(BaseModel):
     model_config = {
         "json_schema_extra": {
             "examples": [
-                ANONYMIZE_EXAMPLE_WITH_EXCLUSIONS["value"],
-                ANONYMIZE_EXAMPLE_WITHOUT_EXCLUSIONS["value"],
-                ANONYMIZE_EXAMPLE_CATEGORY_FILTER["value"],
+                ANONYMIZE_EXAMPLE_PROTECTED["value"],
+                ANONYMIZE_EXAMPLE_COMBINED["value"],
+                ANONYMIZE_EXAMPLE_PLAIN["value"],
             ]
         }
     }
 
     text: str = Field(..., description="The text to anonymize")
+    protected_terms: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Terms to ALWAYS anonymize, mapped by custom category. "
+            "Use this for business secrets, company names, customer names, project codes, "
+            "or domain-specific terms the PII model would not detect. "
+            "Example: {\"COMPANY\": [\"Levara\"], \"CUSTOMER\": [\"Acme Corp\"], \"PROJECT\": [\"OrcaEngine\"]}"
+        ),
+    )
     exclusions: list[str] = Field(
         default_factory=list,
-        description="Terms to exclude from anonymization (company names, technical terms, etc.)",
+        description="Terms to NEVER anonymize — they stay visible even if the model detects them as PII",
     )
     categories: list[str] | None = Field(
         default=None,
-        description="PII categories to detect. None = all. Options: person, email_address, phone_number, private_address, url, date, account_number, secret",
+        description=(
+            "PII categories to detect (model-based). None = all. "
+            "Options: person, email_address, phone_number, private_address, url, date, account_number, secret"
+        ),
     )
 
 
 class DetectedEntity(BaseModel):
-    placeholder: str = Field(..., description="The placeholder used in anonymized text, e.g. [PERSON_1]")
+    placeholder: str = Field(..., description="The placeholder used in anonymized text, e.g. [PERSON_1] or [COMPANY_1]")
     original: str = Field(..., description="The original text that was replaced")
-    category: str = Field(..., description="PII category (person, email, phone, ...)")
+    category: str = Field(..., description="Category — either a PII type (person, email) or a custom category (company, customer)")
     start: int = Field(..., description="Start character offset in original text")
     end: int = Field(..., description="End character offset in original text")
 
 
 class AnonymizeResponse(BaseModel):
-    anonymized_text: str = Field(..., description="Text with PII replaced by numbered placeholders")
+    anonymized_text: str = Field(..., description="Text with PII and protected terms replaced by numbered placeholders")
     mapping: dict[str, str] = Field(
         ...,
-        description="Mapping from placeholder to original value, e.g. {'[PERSON_1]': 'John Smith'}",
+        description="Mapping from placeholder to original value — keep this to restore the text later",
     )
-    entities: list[DetectedEntity] = Field(..., description="All detected entities with details")
-    exclusions_applied: list[str] = Field(..., description="Terms that were protected from anonymization")
+    entities: list[DetectedEntity] = Field(..., description="All detected and protected entities with details")
+    exclusions_applied: list[str] = Field(default_factory=list, description="Terms that were protected from anonymization")
+    protected_terms_applied: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Custom terms that were force-anonymized, grouped by category",
+    )
 
 
 class DeanonymizeRequest(BaseModel):
