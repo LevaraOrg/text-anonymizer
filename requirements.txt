@@ -1,4 +1,4 @@
 fastapi==0.115.12
 uvicorn[standard]==0.34.3
 pydantic==2.11.4
-opf==0.1.0
+opf @ git+https://github.com/openai/privacy-filter.git
