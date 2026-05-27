@@ -3,6 +3,6 @@
 curl -s -X POST http://localhost:8000/anonymize \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Bitte kontaktieren Sie Max Mustermann unter max.mustermann@example.com oder +49 171 1234567. Er arbeitet bei Levara in der Hauptstraße 42, 10115 Berlin.",
+    "text": "Please contact John Smith at john.smith@example.com or +1 555-0123. He works at Levara, 42 Main Street, New York, NY 10001.",
     "exclusions": ["Levara"]
   }' | python3 -m json.tool

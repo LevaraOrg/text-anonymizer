@@ -4,25 +4,25 @@ from app.models import DeanonymizeRequest
 
 def test_deanonymize_simple():
     request = DeanonymizeRequest(
-        text="Kontaktieren Sie [PERSON_1] unter [EMAIL_1].",
+        text="Contact [PERSON_1] at [EMAIL_1].",
         mapping={
-            "[PERSON_1]": "Max Mustermann",
-            "[EMAIL_1]": "max@example.com",
+            "[PERSON_1]": "John Smith",
+            "[EMAIL_1]": "john@example.com",
         },
     )
     result = deanonymize(request)
-    assert result.restored_text == "Kontaktieren Sie Max Mustermann unter max@example.com."
+    assert result.restored_text == "Contact John Smith at john@example.com."
     assert result.replacements_made == 2
     assert result.unresolved_placeholders == []
 
 
 def test_deanonymize_unresolved():
     request = DeanonymizeRequest(
-        text="[PERSON_1] und [PERSON_2] arbeiten zusammen.",
-        mapping={"[PERSON_1]": "Max Mustermann"},
+        text="[PERSON_1] and [PERSON_2] work together.",
+        mapping={"[PERSON_1]": "John Smith"},
     )
     result = deanonymize(request)
-    assert "Max Mustermann" in result.restored_text
+    assert "John Smith" in result.restored_text
     assert "[PERSON_2]" in result.restored_text
     assert result.replacements_made == 1
     assert "[PERSON_2]" in result.unresolved_placeholders
@@ -30,19 +30,19 @@ def test_deanonymize_unresolved():
 
 def test_deanonymize_empty_mapping():
     request = DeanonymizeRequest(
-        text="Kein Platzhalter hier.",
+        text="No placeholders here.",
         mapping={},
     )
     result = deanonymize(request)
-    assert result.restored_text == "Kein Platzhalter hier."
+    assert result.restored_text == "No placeholders here."
     assert result.replacements_made == 0
 
 
 def test_deanonymize_multiple_same_placeholder():
     request = DeanonymizeRequest(
-        text="[PERSON_1] sagte, dass [PERSON_1] kommt.",
+        text="[PERSON_1] said that [PERSON_1] is coming.",
         mapping={"[PERSON_1]": "Anna"},
     )
     result = deanonymize(request)
-    assert result.restored_text == "Anna sagte, dass Anna kommt."
+    assert result.restored_text == "Anna said that Anna is coming."
     assert result.replacements_made == 2

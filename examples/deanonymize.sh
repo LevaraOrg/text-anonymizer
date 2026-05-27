@@ -3,10 +3,10 @@
 curl -s -X POST http://localhost:8000/deanonymize \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Die KI empfiehlt, dass [PERSON_1] per [EMAIL_1] kontaktiert wird. Die Adresse [ADDRESS_1] wurde verifiziert.",
+    "text": "The AI recommends contacting [PERSON_1] via [EMAIL_1]. The address [ADDRESS_1] has been verified.",
     "mapping": {
-      "[PERSON_1]": "Max Mustermann",
-      "[EMAIL_1]": "max.mustermann@example.com",
-      "[ADDRESS_1]": "Hauptstraße 42, 10115 Berlin"
+      "[PERSON_1]": "John Smith",
+      "[EMAIL_1]": "john.smith@example.com",
+      "[ADDRESS_1]": "42 Main Street, New York, NY 10001"
     }
   }' | python3 -m json.tool
