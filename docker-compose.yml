@@ -1,0 +1,14 @@
+services:
+  text-anonymizer:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./exclusions:/app/exclusions:ro
+      - model-cache:/root/.cache/huggingface
+    environment:
+      - OPF_DEVICE=cpu
+    restart: unless-stopped
+
+volumes:
+  model-cache:
