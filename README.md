@@ -26,13 +26,33 @@ Both modes work together. The PII model catches what it knows; protected terms c
 
 ## Quick Start
 
+### Option 1: Pull from GitHub Container Registry (recommended)
+
 ```bash
+docker run -p 8000:8000 ghcr.io/levaraorg/text-anonymizer:latest
+```
+
+With persistent model cache and custom protected terms:
+
+```bash
+docker run -p 8000:8000 \
+  -v text-anonymizer-models:/root/.cache/huggingface \
+  -v ./protected_terms:/app/protected_terms:ro \
+  -v ./exclusions:/app/exclusions:ro \
+  ghcr.io/levaraorg/text-anonymizer:latest
+```
+
+### Option 2: Build from source
+
+```bash
+git clone https://github.com/LevaraOrg/text-anonymizer.git
+cd text-anonymizer
 docker compose up --build
 ```
 
 The service is available at `http://localhost:8000`. Interactive API docs at `http://localhost:8000/docs`.
 
-On the first request, the model is downloaded from HuggingFace (~600 MB). After that it is cached in the Docker volume `model-cache`.
+On the first request, the model is downloaded from HuggingFace (~600 MB). After that it is cached in a Docker volume.
 
 ## API Reference
 
