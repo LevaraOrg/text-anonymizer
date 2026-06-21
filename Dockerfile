@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ app/
 COPY exclusions/ exclusions/
 COPY protected_terms/ protected_terms/
+COPY webui/ webui/
 
 EXPOSE 8000
 

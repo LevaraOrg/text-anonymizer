@@ -4,8 +4,11 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import Body, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.anonymizer import anonymize, get_opf
 from app.deanonymizer import deanonymize
@@ -67,6 +70,14 @@ app.add_middleware(
 
 # MCP Streamable HTTP endpoint: http://localhost:8000/mcp
 app.mount("/mcp", mcp_app)
+
+_WEBUI = Path(__file__).resolve().parent.parent / "webui" / "index.html"
+
+
+@app.get("/", include_in_schema=False)
+def webui() -> FileResponse:
+    """Serve the bundled web UI at the root so users only need a browser (no repo)."""
+    return FileResponse(_WEBUI)
 
 
 @app.post("/anonymize", response_model=AnonymizeResponse)

@@ -26,6 +26,21 @@ Both modes work together. The PII model catches what it knows; protected terms c
 
 ## Quick Start
 
+### Easiest: one-click installer (no Docker knowledge needed)
+
+For non-technical users. The installer checks for Docker (and installs it via Homebrew /
+winget if missing), downloads and starts the service, and opens the web UI in your browser.
+
+- **macOS:** download [`install/install-mac.command`](install/install-mac.command) and
+  double-click it. (If macOS blocks it: right-click → *Open*, or run
+  `chmod +x install-mac.command` once.)
+- **Windows:** download [`install/install-windows.bat`](install/install-windows.bat)
+  (keep [`install/install-windows.ps1`](install/install-windows.ps1) next to it) and
+  double-click the `.bat`.
+
+When it finishes, the UI opens at **<http://localhost:8000/>**. To run it again later, just
+double-click the installer again.
+
 ### Option 1: Pull from GitHub Container Registry (recommended)
 
 ```bash
@@ -66,14 +81,25 @@ docker compose up --build
 
 The service is available at `http://localhost:8000`. Interactive API docs at `http://localhost:8000/docs`.
 
-### Local web UI
+### Web UI
 
-A standalone page is included at [`webui/index.html`](webui/index.html) — open it directly
-in a browser (double-click / `file://`). It shows whether the container is running, lets you
-force the model download, and provides anonymize/deanonymize forms. The API base URL
-(default `http://localhost:8000`) is editable in the header. The container enables CORS so
-the page can call it from the browser; restrict it for shared deployments via the
-`CORS_ALLOW_ORIGINS` environment variable (comma-separated, default `*`).
+The container serves a web UI at the root — just open **<http://localhost:8000/>** once the
+container is running. The same page is also available as a standalone file
+([`webui/index.html`](webui/index.html)) you can open directly (double-click / `file://`).
+
+It can:
+
+- show whether the container is running (status indicator, polled automatically) and **force
+  the model download** (`/warmup`);
+- **anonymize / deanonymize** text, with a one-click round-trip;
+- **import and save protected terms + exclusions** as JSON (`{ "protected_terms": {...},
+  "exclusions": [...] }`);
+- **save and load the mapping table** as JSON;
+- **copy** the anonymized / restored text to the clipboard.
+
+The API base URL (default `http://localhost:8000`) is editable in the header. The container
+enables CORS so the standalone file can call it from the browser; restrict it for shared
+deployments via the `CORS_ALLOW_ORIGINS` environment variable (comma-separated, default `*`).
 
 On the first request, the model is downloaded from HuggingFace (~600 MB). After that it is cached in a Docker volume.
 
