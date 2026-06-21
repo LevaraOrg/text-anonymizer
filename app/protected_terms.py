@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-PROTECTED_TERMS_DIR = Path("/app/protected_terms")
+# Directory of persistent protected-term files. Defaults to <repo>/protected_terms
+# (which resolves to /app/protected_terms inside the container) so the app behaves
+# the same locally and in Docker. Override with PROTECTED_TERMS_DIR.
+_DEFAULT_PROTECTED_TERMS_DIR = Path(__file__).resolve().parent.parent / "protected_terms"
+PROTECTED_TERMS_DIR = Path(os.getenv("PROTECTED_TERMS_DIR", str(_DEFAULT_PROTECTED_TERMS_DIR)))
 
 
 def load_persistent_protected_terms() -> dict[str, list[str]]:

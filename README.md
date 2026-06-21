@@ -314,14 +314,18 @@ In the `protected_terms` field — a dict where keys are category names and valu
 
 ### Persistent (File-Based)
 
-JSON files in the `protected_terms/` directory are automatically loaded and merged with per-request terms. The directory is mounted as a read-only volume into the container.
+JSON files in the `protected_terms/` directory are automatically loaded and merged with
+per-request terms. **The published image ships no default terms** — provide your own by
+mounting the directory (`-v ./protected_terms:/app/protected_terms:ro`) or by pointing the
+`PROTECTED_TERMS_DIR` environment variable at any directory of JSON files. A ready-to-copy
+template lives at [`examples/protected_terms.example.json`](examples/protected_terms.example.json):
 
 ```json
 {
-  "COMPANY": ["Levara", "LevaraOrg"],
-  "CUSTOMER": [],
-  "PROJECT": ["OrcaEngine"],
-  "TERM": ["Kubernetes", "OAuth2", "MCP"]
+  "COMPANY": ["YourCompany", "YourCompany Ltd"],
+  "CUSTOMER": ["Example Customer Inc"],
+  "PROJECT": ["ProjectCodename"],
+  "TERM": ["InternalJargon"]
 }
 ```
 
@@ -348,7 +352,10 @@ Terms to **keep visible** even if the PII model would anonymize them.
 
 ### Persistent (File-Based)
 
-JSON files in the `exclusions/` directory — either a flat list or a categorized dict:
+JSON files in the `exclusions/` directory — either a flat list or a categorized dict. As with
+protected terms, the image ships none by default; mount the directory
+(`-v ./exclusions:/app/exclusions:ro`) or set `EXCLUSIONS_DIR`. Template:
+[`examples/exclusions.example.json`](examples/exclusions.example.json).
 
 ```json
 ["Springfield", "New York"]

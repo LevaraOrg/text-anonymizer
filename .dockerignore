@@ -1,0 +1,25 @@
+# Keep the build context (and image) lean: only app/, webui/, the config dirs and
+# requirements.txt are COPYed by the Dockerfile. Everything below is host-only.
+.git
+.github
+.claude
+.DS_Store
+**/__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Host-only tooling and docs (not needed in the image)
+tests/
+examples/
+install/
+docker-compose.yml
+README.md
+
+# Model cache / weights must never go into the image
+model_cache/
+*.safetensors

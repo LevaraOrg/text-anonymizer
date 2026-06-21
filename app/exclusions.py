@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-EXCLUSIONS_DIR = Path("/app/exclusions")
+# Directory of persistent exclusion files. Defaults to <repo>/exclusions (which
+# resolves to /app/exclusions inside the container) so the app behaves the same
+# locally and in Docker. Override with the EXCLUSIONS_DIR environment variable.
+_DEFAULT_EXCLUSIONS_DIR = Path(__file__).resolve().parent.parent / "exclusions"
+EXCLUSIONS_DIR = Path(os.getenv("EXCLUSIONS_DIR", str(_DEFAULT_EXCLUSIONS_DIR)))
 
 
 def load_persistent_exclusions() -> list[str]:
