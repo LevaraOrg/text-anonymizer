@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Body, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.anonymizer import anonymize, get_opf
 from app.deanonymizer import deanonymize
@@ -50,6 +52,17 @@ app = FastAPI(
     ),
     version="2.0.0",
     lifespan=lifespan,
+)
+
+# CORS so a locally-opened HTML page (file://, origin "null") or any local tool can
+# call the API from the browser. Defaults to "*" because the service is normally run
+# locally; lock it down for shared deployments via CORS_ALLOW_ORIGINS (comma-separated).
+_cors_origins = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # MCP Streamable HTTP endpoint: http://localhost:8000/mcp

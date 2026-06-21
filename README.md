@@ -66,6 +66,15 @@ docker compose up --build
 
 The service is available at `http://localhost:8000`. Interactive API docs at `http://localhost:8000/docs`.
 
+### Local web UI
+
+A standalone page is included at [`webui/index.html`](webui/index.html) — open it directly
+in a browser (double-click / `file://`). It shows whether the container is running, lets you
+force the model download, and provides anonymize/deanonymize forms. The API base URL
+(default `http://localhost:8000`) is editable in the header. The container enables CORS so
+the page can call it from the browser; restrict it for shared deployments via the
+`CORS_ALLOW_ORIGINS` environment variable (comma-separated, default `*`).
+
 On the first request, the model is downloaded from HuggingFace (~600 MB). After that it is cached in a Docker volume.
 
 ## API Reference

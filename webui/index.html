@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text Anonymizer</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #1a212b; --panel2: #222b38; --border: #2c3848;
+    --text: #e6edf3; --muted: #8b98a9; --accent: #4f9cf9; --accent2: #2d7be0;
+    --ok: #2ecc71; --bad: #e74c3c; --warn: #f1c40f; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 16px 24px; background: var(--panel); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  .grow { flex: 1; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px;
+    padding: 6px 12px; border-radius: 999px; background: var(--panel2);
+    border: 1px solid var(--border); white-space: nowrap;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.bad { background: var(--bad); }
+  .dot.warn { background: var(--warn); }
+  .dot.pulse { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+  input, textarea {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    font-size: 14px; font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 90px; font-family: var(--mono); font-size: 13px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input.small { width: 220px; }
+  button {
+    background: var(--accent2); color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.ghost:hover { border-color: var(--accent); background: var(--panel2); }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .panel h2 { margin: 0 0 4px; font-size: 16px; }
+  .panel p.hint { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  pre {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 13px; white-space: pre-wrap;
+    word-break: break-word; margin: 6px 0 0;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  td.ph { font-family: var(--mono); color: var(--accent); white-space: nowrap; }
+  .msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .msg.err { color: var(--bad); }
+  .msg.ok { color: var(--ok); }
+  .pill { font-family: var(--mono); font-size: 11px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔒 Text Anonymizer</h1>
+  <span class="status"><span class="dot" id="dot"></span><span id="statusText">Status unbekannt</span></span>
+  <span class="grow"></span>
+  <label style="margin:0;align-self:center">API</label>
+  <input class="small" id="baseUrl" value="http://localhost:8000" spellcheck="false">
+  <button class="ghost" id="checkBtn" onclick="checkHealth()">Status prüfen</button>
+</header>
+
+<main>
+  <div class="toolbar">
+    <button id="warmupBtn" onclick="warmup()">⬇️ Modell laden / Download forcieren</button>
+    <span class="msg" id="warmupMsg"></span>
+  </div>
+
+  <div class="cols">
+    <!-- ANONYMIZE -->
+    <section class="panel">
+      <h2>Anonymisieren</h2>
+      <p class="hint">PII wird automatisch erkannt; eigene Begriffe werden über „Protected terms“ erzwungen.</p>
+
+      <label for="anonText">Text</label>
+      <textarea id="anonText">Max Mustermann (max@example.com) arbeitet bei Levara am Projekt OrcaEngine. Telefon: +49 151 23456789.</textarea>
+
+      <label for="protectedTerms">Protected terms <span class="pill">KATEGORIE: begriff1, begriff2</span> (eine pro Zeile)</label>
+      <textarea id="protectedTerms" style="min-height:64px">COMPANY: Levara
+PROJECT: OrcaEngine</textarea>
+
+      <label for="exclusions">Exclusions — nie anonymisieren (Komma-getrennt)</label>
+      <input id="exclusions" placeholder="z.B. Springfield, GmbH">
+
+      <div class="row">
+        <button id="anonBtn" onclick="doAnonymize()">Anonymisieren</button>
+        <span class="msg" id="anonMsg"></span>
+      </div>
+
+      <div id="anonResult" style="display:none">
+        <label>Anonymisierter Text</label>
+        <pre id="anonOut"></pre>
+        <label>Mapping</label>
+        <table id="mapTable"><thead><tr><th>Platzhalter</th><th>Original</th><th>Kategorie</th></tr></thead><tbody></tbody></table>
+        <div class="row">
+          <button class="ghost" onclick="sendToDeanon()">→ in „Wiederherstellen“ übernehmen</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEANONYMIZE -->
+    <section class="panel">
+      <h2>Wiederherstellen</h2>
+      <p class="hint">Platzhalter im (ggf. von einer KI bearbeiteten) Text mit den Originalwerten ersetzen.</p>
+
+      <label for="deanonText">Text mit Platzhaltern</label>
+      <textarea id="deanonText">[PRIVATE_PERSON_1] arbeitet bei [COMPANY_1] am Projekt [PROJECT_1].</textarea>
+
+      <label for="mappingJson">Mapping (JSON)</label>
+      <textarea id="mappingJson" style="min-height:120px">{
+  "[PRIVATE_PERSON_1]": "Max Mustermann",
+  "[COMPANY_1]": "Levara",
+  "[PROJECT_1]": "OrcaEngine"
+}</textarea>
+
+      <div class="row">
+        <button id="deanonBtn" onclick="doDeanonymize()">Wiederherstellen</button>
+        <span class="msg" id="deanonMsg"></span>
+      </div>
+
+      <div id="deanonResult" style="display:none">
+        <label>Wiederhergestellter Text</label>
+        <pre id="deanonOut"></pre>
+        <p class="hint" id="deanonStats"></p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const base = () => $("baseUrl").value.replace(/\/+$/, "");
+
+function setStatus(state, text) {
+  const dot = $("dot");
+  dot.className = "dot " + state;
+  $("statusText").textContent = text;
+}
+
+async function checkHealth() {
+  setStatus("warn pulse", "prüfe…");
+  $("checkBtn").disabled = true;
+  try {
+    const r = await fetch(base() + "/health", { method: "GET" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    setStatus("ok", "Container läuft" + (j.status ? " (" + j.status + ")" : ""));
+  } catch (e) {
+    setStatus("bad", "nicht erreichbar — läuft der Container?");
+  } finally {
+    $("checkBtn").disabled = false;
+  }
+}
+
+async function warmup() {
+  const btn = $("warmupBtn"), msg = $("warmupMsg");
+  btn.disabled = true;
+  msg.className = "msg";
+  msg.innerHTML = '<span class="spinner"></span> Modell wird geladen (erster Download ~600 MB, kann dauern)…';
+  try {
+    const r = await fetch(base() + "/warmup", { method: "POST" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    msg.className = "msg ok";
+    msg.textContent = "✓ " + (j.status || "Modell geladen");
+    checkHealth();
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = "Fehler: " + e.message + " — ist der Container erreichbar?";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function parseProtectedTerms(raw) {
+  const out = {};
+  raw.split("\n").forEach(line => {
+    const i = line.indexOf(":");
+    if (i < 0) return;
+    const cat = line.slice(0, i).trim();
+    const terms = line.slice(i + 1).split(",").map(s => s.trim()).filter(Boolean);
+    if (cat && terms.length) out[cat] = (out[cat] || []).concat(terms);
+  });
+  return out;
+}
+
+async function doAnonymize() {
+  const btn = $("anonBtn"), msg = $("anonMsg");
+  btn.disabled = true; msg.className = "msg"; msg.innerHTML = '<span class="spinner"></span> verarbeite…';
+  try {
+    const body = {
+      text: $("anonText").value,
+      protected_terms: parseProtectedTerms($("protectedTerms").value),
+      exclusions: $("exclusions").value.split(",").map(s => s.trim()).filter(Boolean),
+    };
+    const r = await fetch(base() + "/anonymize", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(JSON.stringify(j));
+    $("anonOut").textContent = j.anonymized_text;
+    const tb = $("mapTable").querySelector("tbody");
+    tb.innerHTML = "";
+    const cats = {};
+    (j.entities || []).forEach(e => { cats[e.placeholder] = e.category; });
+    Object.entries(j.mapping || {}).forEach(([ph, orig]) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="ph"></td><td></td><td></td>`;
+      tr.children[0].textContent = ph;
+      tr.children[1].textContent = orig;
+      tr.children[2].textContent = cats[ph] || "";
+      tb.appendChild(tr);
+    });
+    $("anonResult").style.display = "block";
+    msg.className = "msg ok";
+    msg.textContent = "✓ " + Object.keys(j.mapping || {}).length + " Begriffe ersetzt";
+    window._lastAnon = j;
+  } catch (e) {
+    msg.className = "msg err"; msg.textContent = "Fehler: " + e.message;
+  } finally { btn.disabled = false; }
+}
+
+function sendToDeanon() {
+  if (!window._lastAnon) return;
+  $("deanonText").value = window._lastAnon.anonymized_text;
+  $("mappingJson").value = JSON.stringify(window._lastAnon.mapping, null, 2);
+  $("deanonText").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function doDeanonymize() {
+  const btn = $("deanonBtn"), msg = $("deanonMsg");
+  btn.disabled = true; msg.className = "msg"; msg.innerHTML = '<span class="spinner"></span> verarbeite…';
+  try {
+    let mapping;
+    try { mapping = JSON.parse($("mappingJson").value); }
+    catch { throw new Error("Mapping ist kein gültiges JSON"); }
+    const r = await fetch(base() + "/deanonymize", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: $("deanonText").value, mapping }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(JSON.stringify(j));
+    $("deanonOut").textContent = j.restored_text;
+    $("deanonStats").textContent =
+      j.replacements_made + " Ersetzungen" +
+      (j.unresolved_placeholders && j.unresolved_placeholders.length
+        ? " · ungelöst: " + j.unresolved_placeholders.join(", ") : "");
+    $("deanonResult").style.display = "block";
+    msg.className = "msg ok"; msg.textContent = "✓ fertig";
+  } catch (e) {
+    msg.className = "msg err"; msg.textContent = "Fehler: " + e.message;
+  } finally { btn.disabled = false; }
+}
+
+// Auto-check on load + poll every 10s
+checkHealth();
+setInterval(checkHealth, 10000);
+</script>
+</body>
+</html>
