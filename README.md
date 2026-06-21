@@ -32,6 +32,20 @@ Both modes work together. The PII model catches what it knows; protected terms c
 docker run -p 8000:8000 ghcr.io/levaraorg/text-anonymizer:latest
 ```
 
+> **`unauthorized` error?** The published image must be public for an anonymous
+> pull to work. If you get `Error response from daemon: ... unauthorized`, either:
+>
+> 1. **Make the package public** (one-time, recommended): open
+>    <https://github.com/orgs/LevaraOrg/packages/container/text-anonymizer/settings>
+>    → *Danger Zone* → *Change visibility* → **Public**. After that the command
+>    above works for everyone with no login.
+> 2. **Or authenticate** before pulling (keeps the image private):
+>    ```bash
+>    echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+>    docker run -p 8000:8000 ghcr.io/levaraorg/text-anonymizer:latest
+>    ```
+>    where `$GITHUB_TOKEN` is a personal access token with the `read:packages` scope.
+
 With persistent model cache and custom protected terms:
 
 ```bash
@@ -167,6 +181,54 @@ Restores the original text by replacing placeholders with values from the mappin
 ### POST /warmup
 
 Pre-loads the model into memory (otherwise loaded on first `/anonymize` request).
+
+## MCP Server (Claude Desktop & other AI clients)
+
+The same container also exposes an **MCP server** over Streamable HTTP at `/mcp`, so AI
+clients like Claude Desktop can anonymize and restore text through tool calls. The MCP
+tools run in-process — they share the loaded model with the REST API, no extra service.
+
+| MCP tool | Maps to | Purpose |
+|----------|---------|---------|
+| `anonymize` | `POST /anonymize` | Replace PII + protected terms with reversible placeholders, returns the mapping table |
+| `deanonymize` | `POST /deanonymize` | Restore original values from the mapping table |
+
+**Endpoint:** `http://localhost:8000/mcp`
+
+### Connect from Claude Desktop
+
+1. Start the container so the endpoint is live:
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. Add the server to your Claude Desktop config (`claude_desktop_config.json` —
+   *Settings → Developer → Edit Config*). Claude Desktop launches stdio servers, so the
+   [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) bridge connects it to the
+   HTTP endpoint (requires Node.js):
+
+   ```json
+   {
+     "mcpServers": {
+       "text-anonymizer": {
+         "command": "npx",
+         "args": ["-y", "mcp-remote", "http://localhost:8000/mcp"]
+       }
+     }
+   }
+   ```
+
+3. Restart Claude Desktop. The `anonymize` and `deanonymize` tools appear under the
+   text-anonymizer connector.
+
+> **Typical use:** ask Claude to *"anonymize this before we work on it"* — it calls
+> `anonymize`, processes the placeholdered text, then `deanonymize` restores the
+> originals using the mapping it kept. Business secrets stay local; only placeholders
+> ever reach the cloud model.
+
+Any MCP client that speaks Streamable HTTP (e.g. the MCP Inspector) can connect directly
+to `http://localhost:8000/mcp` without the bridge.
 
 ## Placeholder Format
 
