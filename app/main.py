@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import Body, FastAPI
 
 from app.anonymizer import anonymize, get_opf
 from app.deanonymizer import deanonymize
+from app.mcp_server import mcp
 from app.models import (
     ANONYMIZE_EXAMPLE_COMBINED,
     ANONYMIZE_EXAMPLE_PLAIN,
@@ -19,6 +21,18 @@ from app.models import (
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
+# The mounted MCP app manages its own Streamable HTTP session manager, whose
+# lifecycle must run inside the parent app's lifespan (Starlette does not run a
+# sub-app's lifespan automatically).
+mcp_app = mcp.streamable_http_app()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    async with mcp.session_manager.run():
+        yield
+
+
 app = FastAPI(
     title="Text Anonymizer",
     description=(
@@ -31,10 +45,15 @@ app = FastAPI(
         "**Workflow:** `/anonymize` (text + protected terms) → send anonymized text to AI → "
         "`/deanonymize` (AI result + mapping) → restored text with all originals back.\n\n"
         "**Try it:** Use the example dropdown on `/anonymize` below — "
-        "compare 'Protected terms' vs 'Plain' to see business secrets being masked."
+        "compare 'Protected terms' vs 'Plain' to see business secrets being masked.\n\n"
+        "**MCP:** the same tools are exposed for AI clients (e.g. Claude Desktop) at `/mcp`."
     ),
     version="2.0.0",
+    lifespan=lifespan,
 )
+
+# MCP Streamable HTTP endpoint: http://localhost:8000/mcp
+app.mount("/mcp", mcp_app)
 
 
 @app.post("/anonymize", response_model=AnonymizeResponse)
